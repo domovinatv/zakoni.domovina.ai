@@ -1,9 +1,33 @@
 # Narodne novine — izvor podataka (verificirano 2026-07-19)
 
 Ovaj dokument opisuje **stvarno provjerene** endpointe službenog lista RH (narodne-novine.nn.hr).
-Sve navedeno je testirano `curl`-om na datum u naslovu. Nema službenog JSON API-ja, ali postoji
-**ELI (European Legislation Identifier)** implementacija s RDF metapodacima — to je naš primarni
-strukturirani izvor.
+Sve navedeno je testirano `curl`-om.
+
+> **Revizija 2026-07-20.** Ranija verzija je tvrdila „nema službenog JSON API-ja". **Netočno.**
+> NN ima službenu dokumentaciju pristupa podacima i **javni REST API**:
+> - `https://narodne-novine.nn.hr/data_access_hr.aspx` — pristup podacima (sitemapovi, kazala, formati)
+> - `https://narodne-novine.nn.hr/nn_api_hr.aspx` — **NN API**, dokument v1.0 od 18. 4. 2023.
+>
+> Prvi prolaz (Faze 0–2) izgrađen je reverse-engineeringom `search.aspx`-a prije nego što je ta
+> dokumentacija pročitana. Radi, ali **API je bolji put** — vidi §9 i §10.
+
+## 0. Matrica dostupnosti po godinama (izmjereno 2026-07-20)
+
+Ovo je najvažnija tablica u dokumentu — određuje što je uopće moguće po godini.
+
+| Izvor | Raspon | Posljedica |
+|---|---|---|
+| **HTML** (`clanci/…/full/…`) | **1990/91 → danas** | jedini izvor koji pokriva cijeli backfill |
+| **ELI / RDF metapodaci** | **2015 → danas** (`/api/index` to potvrđuje) | za 1990–2014 **nema** tipa akta, donositelja, EuroVoca ni grafa veza |
+| **PDF po aktu** i **PDF cijelog izdanja** | **2023 → danas** | prije 2023. samo iznimno (veliki akti, npr. državni proračun) |
+| **NN API** (`/api/*`) | prati ELI, dakle 2015 → danas | enumeracija bez struganja HTML-a |
+
+Provjereno: `/eli/sluzbeni/2015/1/1/rdf` → 200, `2014/1/1/rdf` → 404; `full/1991_01_1_1.html` → 200;
+`/eli/sluzbeni/2023/1/pdf` → 200, `2022/1/pdf` → 404.
+
+⚠️ **Za 25 od 37 godina backfilla (1990–2014) RDF ne postoji.** Te godine daju samo naslov i tekst
+iz HTML-a; `tip_akta` i donositelj moraju se izvoditi heuristički (vidi `prompts/03-backfill.md`).
+To nije rubni slučaj nego dvije trećine posla.
 
 ## 1. Identifikacija akta
 
@@ -139,3 +163,58 @@ pa `medunarodni/{G}/{B}/{C}` prirodno stane u isti prostor ključeva, ali `01_en
 - **PDF po aktu** (`…/eli/…/pdf`) — izvorni izgled, ali ~2 MB po aktu (često PDF cijelog izdanja);
   za 120k akata to su TB-i. RDF ionako sadrži URL, pa se može dohvatiti na zahtjev.
 - **Oglasni dio** (`clanci/oglasi/…`) — stečajevi, natječaji, osobni oglasi; nisu pravni akti.
+
+## 9. NN API (službeni, dokumentiran) — PREPORUČENI put enumeracije
+
+Dokumentacija: `https://narodne-novine.nn.hr/nn_api_hr.aspx` (v1.0, 18. 4. 2023.).
+Sve provjereno uživo 2026-07-20.
+
+| # | Endpoint | Metoda | Ulaz | Izlaz |
+|---|---|---|---|---|
+| I | `/api/act` | POST | `{part,year,number,act_num,format}` | metapodaci (JSON-LD ili RDF/XML) |
+| II | `/api/index` | GET | — | popis godina s ELI metapodacima |
+| III | `/api/editions` | POST | `{part,year}` | popis brojeva izdanja |
+| IV | `/api/acts` | POST | `{part,year,number}` | popis brojeva akata u izdanju |
+
+- `part` = `"SL"` (službeni) ili `"MU"` (**međunarodni** — rješava i §7 elegantno). Oglasi (OG) nisu podržani.
+- `format` = `"JSON-LD"` ili `"RDF/XML"`.
+- **`act_num` je STRING** — dokumentacija izričito kaže „vrlo rijetko sadrži slovo".
+- **Službeni rate limit: 3 zahtjeva/s** (mi vozimo 1,5 — smijemo dvostruko brže).
+
+Stvarni odgovori:
+
+```
+GET /api/index          -> [2015,…,2026]
+POST /api/editions {"part":"SL","year":2024}          -> [1,2,…,155]
+POST /api/acts {"part":"SL","year":2024,"number":102} -> ["1782","0000","1783",…]
+```
+
+**Zašto je bolji od `search.aspx`:** daje autoritativan popis izdanja i akata bez regexa nad HTML-om,
+bez heuristike „3 prazna broja zaredom = kraj", i bez rizika od paginacije. Primjer iz dokumentacije
+pokazuje da popis izdanja **može imati rupe** (2023: nedostaju 2 i 18) — naša stop-heuristika bi na
+takvoj godini mogla stati prerano.
+
+⚠️ Vrijedi samo za 2015+. Za 1990–2014 ostaje enumeracija preko `search.aspx`.
+
+## 10. Sitemapovi i kazala (još neiskorišteno)
+
+- **Kaskadni sitemapovi**: `https://narodne-novine.nn.hr/sitemap.xml` grana se na po jedan XML po
+  izdanju, npr. `sitemap_1_2023_28.xml`, koji sadrži URL-ove svih propisa tog izdanja u NN i ELI
+  obliku. Službeno namijenjeno crawlerima → **legitiman put enumeracije i za godine bez API-ja**.
+- **Kazala**: „dohvat pojmovnih i kronoloških kazala za odabrane godine, kao i dohvat svih propisa
+  za odabranu godinu u **XLSX ili CSV** obliku (vidi »Kazalo«)" — masovni dohvat metapodataka za
+  cijelu godinu u jednom zahtjevu. **Nije istraženo, a djeluje kao najveći prečac za backfill.**
+
+## 11. Brojevi akata nisu cijeli brojevi
+
+Akt `sluzbeni/2024/102/0000` je stvarna **Odluka Ustavnog suda RH** (U-IIIA-1422/2024), objavljena
+pod brojem `0000`. ELI URL radi samo s punim paddingom:
+
+```
+/eli/sluzbeni/2024/102/0000/rdf -> 200
+/eli/sluzbeni/2024/102/0/rdf    -> 404
+```
+
+Naša shema ima `clanak INTEGER`, pa se `0000` sprema kao `0` i URL se razbije → `status=greska`.
+API dokumentacija potvrđuje da je `act_num` string koji „vrlo rijetko sadrži slovo".
+**Ispravak: čuvati izvorni string oblik broja akta za konstrukciju URL-ova i ELI ključa.**

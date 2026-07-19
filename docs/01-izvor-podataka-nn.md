@@ -218,3 +218,64 @@ pod brojem `0000`. ELI URL radi samo s punim paddingom:
 Naša shema ima `clanak INTEGER`, pa se `0000` sprema kao `0` i URL se razbije → `status=greska`.
 API dokumentacija potvrđuje da je `act_num` string koji „vrlo rijetko sadrži slovo".
 **Ispravak: čuvati izvorni string oblik broja akta za konstrukciju URL-ova i ELI ključa.**
+
+## 12. ⭐ Kazalo — „Popis svih propisa" (XLSX/CSV po godini, 1990→danas)
+
+**Najvažniji endpoint za backfill.** Otkriven 2026-07-20 iz `js/drop-down-controller.js`
+(funkcija `FillXLSXPopisYears`), nije linkan u HTML-u jer je sučelje JS-driven.
+
+```
+https://narodne-novine.nn.hr/get_index_file.aspx?year={GODINA}&type=csv
+https://narodne-novine.nn.hr/get_index_file.aspx?year={GODINA}&type=xlsx
+```
+
+- **Raspon: 1990 → tekuća godina** (JS petlja ide `for (i = new Date().getFullYear(); i >= 1990; i--)`)
+- Format: **tab-separated** unatoč `type=csv`; UTF-8 s BOM-om
+- Jedan zahtjev = kompletan katalog cijele godine
+
+Stupci:
+
+| Stupac | Primjer |
+|---|---|
+| Izdanje | `NN 1/1995` |
+| Broj dokumenta | `1` |
+| Naziv dokumenta | `Zakon o sudskom registru` |
+| **Vrsta dokumenta** | `zakon`, `odluka`, `pravilnik`, `uredba`, `rješenje`, `ostalo` |
+| Podvrsta dokumenta | popunjeno kad je vrsta `ostalo` |
+| Cjeloviti/izmjene/dopune/ukinut | `cjeloviti akt`, `ukidanje`, … |
+| **Donositelj dokumenta** | `Hrvatski sabor`, `SABOR SR HRVATSKE` (povijesni nazivi očuvani) |
+| Poveznica | puni ELI URL |
+
+### Zašto ovo mijenja Fazu 2
+
+Kazalo daje **naslov, tip akta i donositelja za godine u kojima RDF ne postoji (1990–2014)** —
+točno onaj metapodatak koji nam je nedostajao (§0). Umjesto heuristike nad HTML-om, dobivamo
+službene vrijednosti. Uz to zamjenjuje i enumeraciju: popis akata po izdanju je u datoteci.
+
+**Cijeli katalog 1990–2026 = 37 HTTP zahtjeva.** Nakon toga po aktu treba dohvatiti još samo
+HTML (tekst) — RDF ostaje koristan za 2015+ jer donosi EuroVoc i graf veza, kojih u Kazalu nema.
+
+### Verifikacija (2026-07-20)
+
+Kazalo 2025 vs. naša baza napunjena preko `search.aspx`+RDF — **identično do zadnjeg akta**:
+
+| | Kazalo | baza |
+|---|---|---|
+| ukupno akata | 2.404 | 2.404 |
+| odluka / rješenje / pravilnik | 1245 / 359 / 332 | 1245 / 359 / 332 |
+| uredba / zakon | 113 / 102 | 113 / 102 |
+
+1990. također radi: 1.200 akata, donositelj `SABOR SR HRVATSKE`.
+
+## 13. Ostali otkriveni endpointi (iz JS-a)
+
+```
+/sitemap.xml                              -> 9.688 pod-sitemapova, OD 1990.
+/sitemap_1_{godina}_{broj}.xml            -> svi URL-ovi jednog izdanja (NN + ELI oblik)
+/ajax/getEditionMaxNumber.aspx?category={k}&year={G}  -> zadnji broj izdanja u godini
+/files/kazalo_pdf/kazalo_pojmovno/{G}.pdf|.html       -> pojmovno kazalo, 1997–2025
+/files/kazalo_pdf/kazalo_kronolosko/{G}.pdf|.html     -> kronološko kazalo (.html za <=2008 osim 2005/2006)
+```
+
+`getEditionMaxNumber` daje točnu gornju granicu enumeracije → nema više heuristike
+„3 prazna broja zaredom". Sitemapovi pokrivaju i godine bez API-ja (prije 2015).

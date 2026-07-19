@@ -34,6 +34,8 @@ echo "==> 2/3 Building frontend (vite)"
 npm run build
 
 echo "==> 3/3 Deploying to Cloudflare Pages → ${PROJECT_NAME} (branch=${BRANCH})"
+# NODE_OPTIONS: ova mreza nema IPv6 rutu, a Node pokusava IPv6 prvi -> ETIMEDOUT bez ovoga
+NODE_OPTIONS=--dns-result-order=ipv4first \
 CLOUDFLARE_ACCOUNT_ID="$CF_ACCOUNT_ID" \
   npx --yes wrangler pages deploy dist \
     --project-name="$PROJECT_NAME" \

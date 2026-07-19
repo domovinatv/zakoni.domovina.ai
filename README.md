@@ -21,8 +21,9 @@ AI analiza usklađenosti civilnih zakona s naukom Katoličke Crkve (Magisterium 
 - [x] Arhitektura + plan + promptovi
 - [x] Faza 0: Scaffold (`prompts/01-scaffold.md`)
 - [x] Faza 1: Ingest pipeline na 2026 (`prompts/02-ingest-pipeline.md`) — 78 izdanja, 937 akata, sve parsirano
-- [ ] Faza 2: Backfill 2026 → 1990 (`prompts/03-backfill.md`)
-- [~] Faza 3: Otvoreni podaci export (`prompts/04-export-otvoreni-podaci.md`) — JSON+CSV rade (`07_export_static.py`), Parquet TODO; frontend + `deploy.sh` spremni
+- [ ] Faza 2: Backfill 2025 → 1990 (`docs/04-backfill-runbook.md` + `scripts/10_backfill.py`; handoff: `prompts/07-handoff-backfill.md`)
+- [~] Faza 3: Otvoreni podaci export (`prompts/04-export-otvoreni-podaci.md`) — JSON+CSV rade (`07_export_static.py`), Parquet TODO
+- [x] Deploy: https://zakoni-domovina.pages.dev (Cloudflare Pages, `frontend/scripts/deploy.sh`)
 - [ ] Faza 4: ClickHouse RAG (`prompts/05-clickhouse-rag.md`)
 - [ ] Faza 5: Magisterium AI analiza (`prompts/06-magisterium-analiza.md`)
 

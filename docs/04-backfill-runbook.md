@@ -20,9 +20,15 @@ uv run python scripts/07_export_static.py
 
 ## Očekivano trajanje i opseg
 
-- ~150 izdanja i ~3.000–4.000 akata po godini (2026. do srpnja: 78 izdanja / 937 akata)
-- ~2 HTTP zahtjeva po aktu (RDF + HTML) uz rate limit 0.6 s → **1.5–2 h po godini**
-- raw cache raste ~100–150 MB po godini (`data/raw/nn/{G}/`)
+Brojke su **izmjerene** (tablica `ingest_runs`), ne procijenjene:
+
+- ~150–160 izdanja i **~2.000–2.500 akata** po godini
+  (2026. do srpnja: 78 izdanja / 937 akata; 2025.: 158 izdanja / 2.404 akta)
+- ~2 HTTP zahtjeva po aktu (RDF + HTML) uz rate limit 0.6 s → **~1,33 s po aktu**:
+  RDF 0,62 s + HTML 0,71 s. Za 2.404 akta ≈ **56 min po godini**, ne 1,5–2 h kako je
+  ranije stajalo. Enumeracija ~1,5 min, parse ~25 s (zanemarivo).
+- raw cache raste ~65 KB po aktu → **~150 MB po godini** (2025.: 156 MB)
+- cijeli backfill 1990→2024: red veličine 18–26 h čistog dohvata (starije godine su manje)
 
 ## Redoslijed rada (preporuka)
 

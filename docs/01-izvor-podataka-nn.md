@@ -39,8 +39,13 @@ https://narodne-novine.nn.hr/eli/sluzbeni/{godina}/{broj}/{clanak}
 
 - `godina` — godina izdanja (npr. 2024)
 - `broj` — redni broj izdanja Narodnih novina unutar godine (npr. 1)
-- `clanak` — redni broj akta/članka, **sekvencijalan unutar cijele godine** (ne unutar izdanja!)
+- `clanak` — redni broj akta/članka, **u pravilu** rastući kroz godinu (ne unutar izdanja!)
   - primjer: NN 2024/6 sadrži članak 107 → `eli/sluzbeni/2024/6/107`
+  - ⚠️ **NIJE jedinstven unutar godine.** Provjereno na Kazalu: 2008. ima 57 brojeva koji se
+    pojavljuju u dva različita izdanja kao dva različita akta
+    (`NN 100/2008` br. 3042 = Pravilnik, `NN 101/2008` br. 3042 = Rješenje), 2011. ih ima 5,
+    ukupno 69 kroz arhiv 1990–2026. Jedinstven ključ je **cijeli ELI** `(godina, broj, clanak)`.
+  - ⚠️ **nije nužno cijeli broj** — vidi §11 (`0000`, rijetko slovo)
 
 HTML stranice članaka imaju oblik (redirect cilja ELI URI-ja):
 

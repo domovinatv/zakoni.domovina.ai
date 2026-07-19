@@ -36,8 +36,11 @@ CREATE TABLE IF NOT EXISTS akti (
   datum_objave  TEXT,
   status        TEXT NOT NULL DEFAULT 'enumeriran',
   created_at    TEXT DEFAULT (datetime('now')),
-  updated_at    TEXT DEFAULT (datetime('now')),
-  UNIQUE (godina, clanak)
+  updated_at    TEXT DEFAULT (datetime('now'))
+  -- NEMA UNIQUE(godina, clanak)! Broj akta NIJE jedinstven unutar godine:
+  -- npr. 2008 ima 57 brojeva koji se ponavljaju u dva izdanja
+  -- (NN 100/2008 br. 3042 != NN 101/2008 br. 3042). Jedinstven je samo `eli`,
+  -- koji nosi (godina, broj, clanak). Vidi docs/01-izvor-podataka-nn.md §1.
 );
 
 CREATE TABLE IF NOT EXISTS akt_tekst (
@@ -88,16 +91,39 @@ CREATE TABLE IF NOT EXISTS analize (
   UNIQUE (akt_eli, vrsta)
 );
 
+-- Katalog iz sluzbenog Kazala (get_index_file.aspx), 1990->danas.
+-- Autoritativan popis SVIH propisa po godini: naslov, vrsta, donositelj.
+-- Za 1990-2014 je to jedini izvor tih metapodataka (RDF postoji tek od 2015).
+-- Vidi docs/01-izvor-podataka-nn.md §12.
+CREATE TABLE IF NOT EXISTS katalog (
+  serija        TEXT NOT NULL DEFAULT 'sluzbeni',
+  godina        INTEGER NOT NULL,
+  broj          INTEGER NOT NULL,       -- broj izdanja
+  clanak        TEXT NOT NULL,          -- broj dokumenta; STRING! ('0000', rijetko sa slovom)
+  naslov        TEXT,
+  vrsta         TEXT,                   -- zakon, odluka, pravilnik, uredba, rjesenje, ostalo
+  podvrsta      TEXT,                   -- popunjeno kad je vrsta 'ostalo'
+  izmjena       TEXT,                   -- cjeloviti akt / ukidanje / izmjene / dopune
+  donositelj    TEXT,
+  eli           TEXT,
+  -- kljuc ukljucuje `broj` jer clanak nije jedinstven unutar godine (vidi `akti`)
+  UNIQUE (serija, godina, broj, clanak)
+);
+
 CREATE INDEX IF NOT EXISTS idx_akti_godina ON akti (godina, broj, clanak);
 CREATE INDEX IF NOT EXISTS idx_akti_status ON akti (status);
+CREATE INDEX IF NOT EXISTS idx_katalog_godina ON katalog (godina, broj);
 """
 
 
 def connect(path: pathlib.Path = DB_PATH) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, timeout=60.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    # Bez ovoga svaki paralelni pisac odmah puca na "database is locked" —
+    # npr. 00_katalog.py dok 10_backfill.py jos vrti neku godinu.
+    conn.execute("PRAGMA busy_timeout=60000")
     conn.executescript(SCHEMA)
     return conn
 
@@ -192,3 +218,21 @@ def finish_run(conn, run_id: int, ok: int, err: int, napomena: str | None = None
         (ok, err, napomena, run_id),
     )
     conn.commit()
+
+
+def upsert_katalog(conn, red: dict):
+    """Upsert jednog retka Kazala. Idempotentno po (serija, godina, clanak)."""
+    conn.execute(
+        """INSERT INTO katalog (serija, godina, broj, clanak, naslov, vrsta, podvrsta,
+                                izmjena, donositelj, eli)
+           VALUES (:serija, :godina, :broj, :clanak, :naslov, :vrsta, :podvrsta,
+                   :izmjena, :donositelj, :eli)
+           ON CONFLICT(serija, godina, broj, clanak) DO UPDATE SET
+             naslov = COALESCE(excluded.naslov, katalog.naslov),
+             vrsta = COALESCE(excluded.vrsta, katalog.vrsta),
+             podvrsta = COALESCE(excluded.podvrsta, katalog.podvrsta),
+             izmjena = COALESCE(excluded.izmjena, katalog.izmjena),
+             donositelj = COALESCE(excluded.donositelj, katalog.donositelj),
+             eli = COALESCE(excluded.eli, katalog.eli)""",
+        red,
+    )

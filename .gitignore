@@ -7,4 +7,5 @@ data/
 *.db
 node_modules/
 frontend/dist/
+frontend/public/data/
 .DS_Store

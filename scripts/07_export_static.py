@@ -21,7 +21,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from src import db
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # v2: lista akata nosi tip iz kataloga, izmjenu i dostupnost teksta
+PRVA_PDF_GODINA = 2023  # prije toga NN nema PDF pa se tekst ne moze naknadno dopuniti
 ROOT = db.ROOT
 DATA_DIR = ROOT / "frontend" / "public" / "data"
 CSV_DIR = ROOT / "data" / "export"
@@ -36,9 +37,19 @@ def main():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     CSV_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Katalog (docs/01 §12) sluzi kao dopuna: `vrsta` popunjava tip_akta ondje gdje
+    # RDF nema type_document, `izmjena` govori je li akt cjelovit ili mijenja/ukida drugi.
+    # LEFT JOIN preko ELI-ja, ne (godina, clanak) — broj akta nije jedinstven u godini.
     akti = [dict(r) for r in conn.execute(
-        """SELECT a.*, i.naziv AS donositelj
-           FROM akti a LEFT JOIN institucije i ON i.nn_id = a.donositelj_nn_id
+        """SELECT a.*,
+                  i.naziv AS donositelj,
+                  COALESCE(a.tip_akta, UPPER(NULLIF(k.vrsta, '-'))) AS tip_prikaz,
+                  NULLIF(k.izmjena, '-') AS izmjena,
+                  COALESCE(LENGTH(t.tekst), 0) AS duljina_teksta
+           FROM akti a
+           LEFT JOIN institucije i ON i.nn_id = a.donositelj_nn_id
+           LEFT JOIN akt_tekst t ON t.akt_id = a.id
+           LEFT JOIN katalog k ON k.eli = 'https://narodne-novine.nn.hr/eli/' || a.eli
            WHERE a.status = 'parsiran'
            ORDER BY a.godina DESC, a.clanak DESC"""
     )]
@@ -51,8 +62,16 @@ def main():
         with open(DATA_DIR / "godine" / f"{g}.json", "w", encoding="utf-8") as f:
             json.dump([clean({
                 "eli": a["eli"], "broj": a["broj"], "clanak": a["clanak"],
-                "naslov": a["naslov"], "tip": a["tip_akta"],
+                "naslov": a["naslov"], "tip": a["tip_prikaz"],
                 "datum": a["datum_objave"], "donositelj": a["donositelj"],
+                "izmjena": a["izmjena"],
+                # Dostupnost teksta — korisnik to mora vidjeti IZ LISTE, bez otvaranja akta.
+                # NN za neke akte objavi samo PDF (npr. strukovni kurikuli, veliki prilozi),
+                # a zadnje izdanje zna dulje ostati bez HTML-a. Vidi docs/05 §6.
+                "ima_tekst": bool(a["duljina_teksta"]),
+                "znakova": a["duljina_teksta"] or None,
+                # PDF (a time i buduci import teksta) postoji tek od 2023. — docs/01 §0
+                "pdf": g >= PRVA_PDF_GODINA,
             }) for a in ga], f, ensure_ascii=False, separators=(",", ":"))
 
         akt_dir = DATA_DIR / "akt" / str(g)
@@ -69,7 +88,8 @@ def main():
             with open(akt_dir / f"{a['broj']}_{a['clanak']}.json", "w", encoding="utf-8") as f:
                 json.dump(clean({
                     "eli": a["eli"], "godina": g, "broj": a["broj"], "clanak": a["clanak"],
-                    "naslov": a["naslov"], "tip": a["tip_akta"], "donositelj": a["donositelj"],
+                    "naslov": a["naslov"], "tip": a["tip_prikaz"], "donositelj": a["donositelj"],
+                    "izmjena": a["izmjena"], "pdf": g >= PRVA_PDF_GODINA,
                     "datum_akta": a["datum_akta"], "datum_objave": a["datum_objave"],
                     "tekst": tekst["tekst"] if tekst else None,
                     "veze": veze, "veze_na_ovaj": veze_na,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { aktPath, formatDate, loadAkt, nnRef } from "@/lib/data";
+import { IzmjenaBadge, TipBadge } from "@/components/Oznake";
 import type { AktDetail } from "@/lib/types";
 
 const PREDIKATI: Record<string, string> = {
@@ -32,8 +33,11 @@ export default function Akt() {
       <p className="text-sm text-muted">
         <Link className="underline" to={`/godina/${akt.godina}`}>NN {akt.godina}.</Link>{" "}
         · NN {akt.broj}/{akt.godina} · broj akta {akt.clanak}
-        {akt.tip ? ` · ${akt.tip}` : ""}
       </p>
+      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+        <TipBadge tip={akt.tip} />
+        <IzmjenaBadge izmjena={akt.izmjena} />
+      </div>
       <h1 className="text-2xl font-bold text-navy mt-1 mb-2">{akt.naslov ?? "(bez naslova)"}</h1>
       <p className="text-sm text-muted mb-4">
         {akt.donositelj && <>{akt.donositelj} · </>}
@@ -70,7 +74,25 @@ export default function Akt() {
           {akt.tekst}
         </div>
       ) : (
-        <p className="text-muted">Tekst nije dostupan — vidi izvornik na nn.hr.</p>
+        <div className="rounded-lg border border-border bg-surface p-5 text-sm">
+          <p className="font-medium text-navy mb-1">Puni tekst još nije dostupan</p>
+          <p className="text-muted">
+            {akt.pdf ? (
+              <>
+                Narodne novine za ovaj akt nisu objavile HTML, nego samo PDF izdanja. Tekst će biti
+                uvezen iz PDF-a u sljedećem prolazu.
+              </>
+            ) : (
+              <>
+                Narodne novine za ovaj akt nemaju ni HTML ni PDF (PDF postoji tek od 2023.).
+              </>
+            )}{" "}
+            <a className="underline" href={nnUrl} target="_blank" rel="noreferrer">
+              Otvori izvornik na nn.hr
+            </a>
+            .
+          </p>
+        </div>
       )}
 
       {akt.oznake.length > 0 && (

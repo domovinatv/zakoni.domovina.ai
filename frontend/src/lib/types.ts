@@ -6,6 +6,14 @@ export interface AktSummary {
   tip?: string;
   datum?: string;
   donositelj?: string;
+  /** "cjeloviti akt" | "izmjene i dopune" | "ukidanje" … — iz službenog Kazala */
+  izmjena?: string;
+  /** je li puni tekst akta dostupan (NN za dio akata objavi samo PDF) */
+  ima_tekst?: boolean;
+  /** duljina teksta u znakovima; izostaje kad teksta nema */
+  znakova?: number;
+  /** postoji li PDF za tu godinu — tek od 2023., pa se tekst inače ne može dopuniti */
+  pdf?: boolean;
 }
 
 export interface Veza {

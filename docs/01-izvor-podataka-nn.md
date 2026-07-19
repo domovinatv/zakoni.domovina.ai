@@ -73,7 +73,12 @@ Nema sitemap-a ni RDF-a na razini izdanja/godine. Enumeracija ide preko stranice
 https://narodne-novine.nn.hr/search.aspx?sortiraj=4&kategorija=1&godina={G}&broj={B}&rpp=200&qtype=1&pretraga=da
 ```
 
-- `kategorija=1` = službeni dio (kategorija=2 bi bio oglasni dio — izvan opsega prvog prolaza)
+- `kategorija=1` = **službeni dio** (`clanci/sluzbeni/…`)
+- `kategorija=2` = **međunarodni ugovori** (`clanci/medunarodni/…`) — vidi §7. Ranija verzija ovog
+  dokumenta je tvrdila da je to oglasni dio; **netočno**, provjereno 2026-07-19.
+- `kategorija=3` i dalje → prazno (ne postoje)
+- oglasni dio je na zasebnoj putanji `clanci/oglasi/…` (stečajevi, natječaji, osobni oglasi) —
+  nisu pravni akti, **trajno izvan opsega**
 - iz HTML-a se izvlače linkovi regexom `clanci/sluzbeni/[0-9_]+\.html` → daje `YYYY_MM_BROJ_CLANAK`
 - `rpp=200` je dovoljan (izdanja imaju tipično < 100 akata; provjeriti i paginaciju za sigurnost)
 - **Stop-uvjet**: nepostojeći `broj` vraća stranicu s 0 linkova (provjereno za 2026/999).
@@ -93,7 +98,44 @@ Iz enumeracije dobivamo `(godina, mjesec, broj, clanak)` → iz toga konstruiram
 ## 6. Opseg podataka (procjena)
 
 - Digitalni arhiv NN-a na webu pokriva ~1990.–danas.
-- Red veličine: ~150 izdanja × ~25 akata ≈ **3.000–4.000 akata godišnje**, tj. ~120.000+ akata za
-  cijeli backfill 2026 → 1990.
+- **Izmjereno** (ne procjena): 2026. (do srpnja) = 78 izdanja / 937 akata; 2025. = 158 izdanja /
+  **2.404 akta**, tj. ~15 akata po izdanju. Ranija procjena od 3.000–4.000 akata godišnje i
+  120.000+ ukupno bila je previsoka; realnije je **~2.000–2.500 po godini** za moderne godine i
+  red veličine **50.000–70.000 akata** za cijeli backfill (starije godine su manje).
+- **Izmjerena brzina** uz `MIN_INTERVAL=0.6`: RDF 0,62 s/akt, HTML 0,71 s/akt → **~1,33 s po aktu**.
+  2025. (2.404 akta) ≈ 56 min ukupno. Raw cache ~65 KB/akt → ~156 MB za 2025.
 - Backfill ide **godinu po godinu, od 2026 prema starijima** (novije = relevantnije, stariji slojevi
   arhive mogu imati drukčiji HTML — parser prilagođavati postupno).
+
+## 7. Međunarodni ugovori (druga serija, zasad NIJE u bazi)
+
+Uz službeni dio, NN objavljuje i seriju **Međunarodni ugovori** — potvrđeni (ratificirani)
+međunarodni ugovori. Po čl. 141 Ustava RH oni su po pravnoj snazi **iznad zakona**, pa katalog
+bez njih nije pravno potpun.
+
+Provjereno 2026-07-19 (`curl -L`):
+
+| Element | Vrijednost |
+|---|---|
+| enumeracija | `search.aspx?…&kategorija=2&godina={G}&broj={B}&…` |
+| link regex | `clanci/medunarodni/(\d{4})_(\d{2})_(\d+)_(\d+)\.html` |
+| ELI URI | `…/eli/medunarodni/{godina}/{broj}/{clanak}` |
+| RDF | `…/eli/medunarodni/{G}/{B}/{C}/rdf` → **postoji**, ista ELI struktura kao službeni dio |
+| čisti HTML | `…/clanci/medunarodni/full/{YYYY}_{MM}_{BROJ}_{CLANAK}.html` |
+| jezici | `is_realized_by` daje **`/hrv` i `/eng`** — dvojezični tekst |
+
+Opseg je malen: **2025. = 11 izdanja / ~47 akata** (usporedbe radi, službeni dio 158/2404).
+Cijeli backfill ove serije 1990→2026 je red veličine **< 1 h**.
+
+Primjer 2025/1/1: `type_document=ZAKON`, `passed_by=…/nn-institutions/19505` (Sabor),
+`title="Zakon o potvrđivanju Sporazuma između Republike Hrvatske i OECD-a…"`.
+
+⚠️ Za implementaciju treba razlikovati serije — `eli` ključ trenutno ima oblik `sluzbeni/{G}/{B}/{C}`,
+pa `medunarodni/{G}/{B}/{C}` prirodno stane u isti prostor ključeva, ali `01_enumerate` i
+`nn_client` hardkodiraju `sluzbeni` (vidi `LINK_RE`, `rdf_url`, `full_html_url`).
+
+## 8. Formati koje NAMJERNO ne preuzimamo
+
+- **PDF po aktu** (`…/eli/…/pdf`) — izvorni izgled, ali ~2 MB po aktu (često PDF cijelog izdanja);
+  za 120k akata to su TB-i. RDF ionako sadrži URL, pa se može dohvatiti na zahtjev.
+- **Oglasni dio** (`clanci/oglasi/…`) — stečajevi, natječaji, osobni oglasi; nisu pravni akti.

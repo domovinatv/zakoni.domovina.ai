@@ -31,14 +31,28 @@ Donositelji: Vlada 24.799, Sabor 7.447, Predsjednik 5.630, HANFA 4.927, Ustavni 
 Izmjereno na 2025.: **HTML 0,71 s/akt, RDF 0,62 s/akt**; **HTML 73 KB/akt, RDF 4,5 KB/akt**
 (uz `MIN_INTERVAL = 0.6 s`).
 
+**Ispravak 2026-07-20:** raniji izračun je primjenjivao moderni 73 KB/akt na cijeli arhiv.
+Uzorkovanje po erama (8 godina × 8 akata, medijani) pokazuje da su stari akti **3× manji**:
+
+| Era | Akata | KB/akt | GB |
+|---|---:|---:|---:|
+| 1990–1999 | 19.611 | ~23 | 0,43 |
+| 2000–2009 | 31.892 | ~29 | 0,88 |
+| 2010–2019 | 29.581 | ~40 | 1,13 |
+| 2020–2026 | 16.477 | **74** (izmjereno) | 1,16 |
+
 | Stavka | Vrijeme | Disk |
 |---|---:|---:|
-| HTML svih 97.561 akata | 19,2 h | 6,8 GB |
-| RDF za 2015–2026 (30.017 akata) | 5,2 h | 0,13 GB |
-| Kazalo (37 zahtjeva) | < 1 min | 20 MB |
-| **UKUPNO** | **≈ 24,4 h** | **≈ 6,9 GB** |
+| HTML svih 97.561 akata | ~19 h | **3,60 GB** |
+| RDF, samo 2015+ (24.097 preostalih) | ~4 h | 0,10 GB |
+| Sitemapovi (5.077 izdanja × 5,1 KB) | ~0,9 h | 0,02 GB |
+| Kazalo (37 zahtjeva) | < 1 min | 0,02 GB |
+| **UKUPNO bez PDF-ova** | **≈ 24 h** | **≈ 3,9 GB** |
 
-Već dohvaćeno: 2026, 2025, 2024 (u tijeku) ≈ 5.900 akata → **preostaje ~22 h**.
+Već dohvaćeno (2024–2026, 5.917 akata): 0,42 GB →
+**preostaje ~3,3 GB i ~23 h** (odnosno ~15 h uz `MIN_INTERVAL=0.4`).
+
+PDF-ovi se preuzimaju u zasebnom prolasku i nisu uračunati (vidi §6; samo 2023+, ~1,5 GB).
 
 ### Ubrzanja koja su na stolu
 
@@ -54,16 +68,23 @@ Već dohvaćeno: 2026, 2025, 2024 (u tijeku) ≈ 5.900 akata → **preostaje ~22
 Redoslijed se mijenja u odnosu na Fazu 1/2:
 
 ```
-00_katalog   Kazalo CSV po godini  -> tablica `katalog`   (37 zahtjeva, autoritativan popis)
-   ↓         iz kataloga se pune `izdanja` i `akti` (naslov, vrsta, donositelj)
-03_fetch_html  HTML po aktu        -> raw cache          (jedini dohvat koji skalira)
-04_parse       tekst               -> `akt_tekst`
-02_fetch_rdf   samo 2015+          -> EuroVoc, graf veza (obogaćivanje, nije nužno)
+00_katalog     Kazalo CSV po godini  -> `katalog`     (37 zahtjeva za cijeli arhiv)
+01_sitemap     sitemap po izdanju    -> `izdanja`, `akti` s naslovom i tipom iz kataloga
+02_fetch_rdf   samo 2015+            -> EuroVoc, graf veza, datumi
+03_fetch_html  HTML po aktu          -> raw cache      (jedini dohvat koji skalira)
+04_parse       tekst                 -> `akt_tekst`
 05_build_fts / 07_export_static
 ```
 
-`01_enumerate` (struganje `search.aspx`-a) postaje **suvišan** — katalog daje isto,
-točnije i 137× jeftinije. Zadržati ga samo kao rezervu ako Kazalo ikad zakaže.
+`01_enumerate.py` (struganje `search.aspx`-a) je **zamijenjen** s `01_sitemap.py`:
+- sitemap je **114× manji** na disku (808 KB vs 92 MB po godini)
+- daje **mjesec**, koji katalog nema a `full/` URL ga traži
+- daje broj akta s **paddingom** (`0000`) → nema više ručnog krpanja
+- popis izdanja dolazi iz kataloga → nema heuristike „3 prazna zaredom"
+- naslov i tip se pune odmah iz kataloga: provjereno na 2023., **svih 2.531 akata
+  ima naslov i tip prije ijednog RDF/HTML zahtjeva**
+
+Za 1990–2014 to je jedini način da akti uopće dobiju tip i donositelja.
 
 ### Što katalog NE daje
 

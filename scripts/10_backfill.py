@@ -1,7 +1,8 @@
 """Backfill orkestrator: vrti pipeline godinu po godinu, od novijih prema starijima.
 
-Za svaku godinu redom pokrece: 01_enumerate -> 02_fetch_rdf -> 03_fetch_html ->
-04_parse -> 06_stats. Godina je gotova tek kad 06_stats prodje (exit 0); na gresku
+Za svaku godinu redom pokrece: 01_sitemap -> 02_fetch_rdf -> 03_fetch_html ->
+04_parse -> 06_stats. PREDUVJET: katalog (scripts/00_katalog.py).
+Za godine < 2015 se 02_fetch_rdf preskace jer ELI/RDF tada ne postoji. Godina je gotova tek kad 06_stats prodje (exit 0); na gresku
 staje i ispisuje dijagnostiku. Sve faze su idempotentne — ponovno pokretanje
 preskace preuzeto (raw cache) i obradjeno (anti-join po statusu).
 
@@ -19,7 +20,11 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-FAZE = ["01_enumerate.py", "02_fetch_rdf.py", "03_fetch_html.py", "04_parse.py", "06_stats.py"]
+# 01_sitemap zamjenjuje 01_enumerate (search.aspx): 1 sitan XML po izdanju umjesto
+# 600 KB HTML-a, daje mjesec i padding broja akta, a naslov/tip stizu iz kataloga.
+# 02_fetch_rdf se preskace za godine < 2015 jer ELI/RDF tada ne postoji (docs/01 §0).
+FAZE = ["01_sitemap.py", "02_fetch_rdf.py", "03_fetch_html.py", "04_parse.py", "06_stats.py"]
+PRVA_ELI_GODINA = 2015
 
 
 def run_faza(script: str, godina: int) -> int:
@@ -39,6 +44,10 @@ def main():
     for g in godine:
         t0 = time.monotonic()
         for script in FAZE:
+            if script == "02_fetch_rdf.py" and g < PRVA_ELI_GODINA:
+                print(f"\n=== {g}: preskacem 02_fetch_rdf.py (RDF postoji tek od "
+                      f"{PRVA_ELI_GODINA}.) ===", flush=True)
+                continue
             rc = run_faza(script, g)
             if rc != 0:
                 print(f"\nSTOP: {script} za {g}. pao (exit {rc}). "

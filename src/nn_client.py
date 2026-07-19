@@ -99,9 +99,10 @@ def search_url(godina: int, broj: int) -> str:
     )
 
 
-def rdf_url(godina: int, broj: int, clanak: int) -> str:
+def rdf_url(godina: int, broj: int, clanak: str | int) -> str:
+    """`clanak` je STRING — vidi docs/01 §11 (npr. '0000', rijetko sa slovom)."""
     return f"{BASE}/eli/sluzbeni/{godina}/{broj}/{clanak}/rdf"
 
 
-def full_html_url(godina: int, mjesec: int, broj: int, clanak: int) -> str:
+def full_html_url(godina: int, mjesec: int, broj: int, clanak: str | int) -> str:
     return f"{BASE}/clanci/sluzbeni/full/{godina}_{mjesec:02d}_{broj}_{clanak}.html"

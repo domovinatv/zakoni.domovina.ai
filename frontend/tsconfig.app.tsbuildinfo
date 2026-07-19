@@ -1,1 +1,1 @@
-{"root":["./src/main.tsx","./src/lib/data.ts","./src/lib/types.ts","./src/routes/akt.tsx","./src/routes/godina.tsx","./src/routes/home.tsx","./src/routes/layout.tsx"],"version":"5.9.3"}
+{"root":["./src/main.tsx","./src/components/oznake.tsx","./src/lib/data.ts","./src/lib/types.ts","./src/routes/akt.tsx","./src/routes/godina.tsx","./src/routes/home.tsx","./src/routes/layout.tsx"],"version":"5.9.3"}

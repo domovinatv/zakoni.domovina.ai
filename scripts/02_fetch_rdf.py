@@ -21,7 +21,7 @@ def main():
 
     conn = db.connect()
     akti = conn.execute(
-        "SELECT eli, broj, clanak FROM akti WHERE godina=? AND status='enumeriran' ORDER BY clanak"
+        "SELECT eli, broj, clanak FROM akti WHERE godina=? AND status='enumeriran' ORDER BY CAST(clanak AS INTEGER), clanak"
         + (f" LIMIT {int(args.limit)}" if args.limit else ""),
         (g,),
     ).fetchall()

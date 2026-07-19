@@ -51,7 +51,10 @@ def main():
            LEFT JOIN akt_tekst t ON t.akt_id = a.id
            LEFT JOIN katalog k ON k.eli = 'https://narodne-novine.nn.hr/eli/' || a.eli
            WHERE a.status = 'parsiran'
-           ORDER BY a.godina DESC, a.clanak DESC"""
+           -- clanak je TEXT (moze biti '0000' ili sadrzavati slovo), pa se mora
+           -- sortirati numericki; leksicki bi '999' dosao poslije '1000'.
+           ORDER BY a.godina DESC,
+                    CAST(a.clanak AS INTEGER) DESC, a.clanak DESC"""
     )]
     godine = sorted({a["godina"] for a in akti}, reverse=True)
 
@@ -64,7 +67,7 @@ def main():
                 "eli": a["eli"], "broj": a["broj"], "clanak": a["clanak"],
                 "naslov": a["naslov"], "tip": a["tip_prikaz"],
                 "datum": a["datum_objave"], "donositelj": a["donositelj"],
-                "izmjena": a["izmjena"],
+                "izmjena": a["izmjena"] if a["izmjena"] != "cjeloviti akt" else None,
                 # Dostupnost teksta — korisnik to mora vidjeti IZ LISTE, bez otvaranja akta.
                 # NN za neke akte objavi samo PDF (npr. strukovni kurikuli, veliki prilozi),
                 # a zadnje izdanje zna dulje ostati bez HTML-a. Vidi docs/05 §6.

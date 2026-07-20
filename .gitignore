@@ -2,10 +2,10 @@
 __pycache__/
 *.pyc
 .venv/
-data/
+data
 !data/.gitkeep
 *.db
 node_modules/
 frontend/dist/
-frontend/public/data/
+frontend/public/data
 .DS_Store

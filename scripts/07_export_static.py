@@ -144,6 +144,11 @@ def main():
     dump_csv("institucije.csv", conn.execute("SELECT nn_id, naziv FROM institucije"),
              ["nn_id", "naziv"])
 
+    # DATA_DIR zivi na ExFAT vanjskom disku — macOS tamo stvara AppleDouble
+    # `._*` datoteke koje bi Vite kopirao u dist i deployale bi se kao smece.
+    for junk in DATA_DIR.rglob("._*"):
+        junk.unlink()
+
     print(f"Export gotov: {len(akti)} akata, godine {godine or '—'}")
     print(f"  JSON: {DATA_DIR}")
     print(f"  CSV:  {CSV_DIR}")

@@ -77,8 +77,9 @@ uv run python scripts/04_parse.py --godina 1998
 
 `./frontend/scripts/deploy.sh` radi sve (export → build → wrangler). Napomene za ovu mašinu:
 - mreža nema IPv6 rutu → `NODE_OPTIONS=--dns-result-order=ipv4first` (već u deploy.sh)
-- wrangler OAuth refresh ne prolazi kroz Claude Code sandbox → pokreni deploy iz običnog
-  terminala, ili u Claude Codeu dopusti komandu izvan sandboxa
+- wrangler OAuth **radi** iz Claude Codea — `./frontend/scripts/deploy.sh` prolazi bez
+  posebnih koraka (provjereno 2026-07-20). Ranija tvrdnja da OAuth ne prolazi kroz sandbox
+  bila je netočna; ako deploy ipak padne na autentikaciji, tek tada ga pokreni iz terminala
 - Pages projekt `zakoni-domovina` postoji na D.O.M. accountu; custom domena se kači ručno
 
 ## Poznata ograničenja teksta
